@@ -1,0 +1,40 @@
+app:
+  name: "TrustYojana"
+  version: "2.0.0"
+  log_level: "INFO"
+  log_file: "logs/api.log"
+
+llm:
+  provider: "ollama"  # Options: openai, gemini, anthropic, ollama
+  model: "qwen2.5:0.5b"
+  temperature: 0.0
+  request_timeout: 60
+  max_retries: 2
+
+embeddings:
+  model_name: "BAAI/bge-small-en-v1.5"
+  device: "cpu"
+
+rag:
+  chunk_size: 800
+  chunk_overlap: 100
+  top_k: 4
+  max_retries: 2
+
+paths:
+  raw_data_dir: "data/raw"
+  processed_data_dir: "data/processed"
+  sources_csv: "data/sources.csv"
+  chroma_db_dir: "chroma_db"
+  collection_name: "trustyojana_schemes"
+  logs_dir: "logs"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "http://localhost:8501"
+    - "http://127.0.0.1:8501"
+
+streamlit:
+  api_url: "http://127.0.0.1:8000"
