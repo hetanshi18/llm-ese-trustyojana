@@ -1,6 +1,9 @@
 """Unit tests for FastAPI endpoints, request validation, health checks, and privacy logging."""
 
 import os
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
@@ -12,7 +15,12 @@ from src.config import get_config
 client = TestClient(app)
 
 
-def test_health_without_deep():
+@patch("api.main.get_retriever")
+def test_health_without_deep(mock_get_retriever):
+    mock_ret = MagicMock()
+    mock_ret.count.return_value = 207
+    mock_get_retriever.return_value = mock_ret
+
     response = client.get("/health")
     assert response.status_code in (200, 503)
     data = response.json()
@@ -23,9 +31,14 @@ def test_health_without_deep():
     assert data["llm_reachable"] is None  # Must be null by default
 
 
+@patch("api.main.get_retriever")
 @patch("api.main.check_llm_config")
 @patch("api.main.check_llm_reachability")
-def test_health_with_deep_when_configured(mock_reachability, mock_config):
+def test_health_with_deep_when_configured(mock_reachability, mock_config, mock_get_retriever):
+    mock_ret = MagicMock()
+    mock_ret.count.return_value = 207
+    mock_get_retriever.return_value = mock_ret
+
     mock_config.return_value = (True, "Valid config")
     mock_reachability.return_value = (True, None)
     response = client.get("/health?deep=true")
@@ -36,9 +49,14 @@ def test_health_with_deep_when_configured(mock_reachability, mock_config):
     assert data["status"] == "ok"
 
 
+@patch("api.main.get_retriever")
 @patch("api.main.check_llm_config")
 @patch("api.main.check_llm_reachability")
-def test_health_with_deep_when_unreachable(mock_reachability, mock_config):
+def test_health_with_deep_when_unreachable(mock_reachability, mock_config, mock_get_retriever):
+    mock_ret = MagicMock()
+    mock_ret.count.return_value = 207
+    mock_get_retriever.return_value = mock_ret
+
     mock_config.return_value = (True, "Valid config")
     mock_reachability.return_value = (False, "Timeout connecting to provider")
     response = client.get("/health?deep=true")
@@ -48,7 +66,22 @@ def test_health_with_deep_when_unreachable(mock_reachability, mock_config):
     assert data["status"] == "degraded"
 
 
-def test_list_schemes():
+@patch("api.main.get_retriever")
+def test_list_schemes(mock_get_retriever):
+    mock_ret = MagicMock()
+    mock_ret.get_indexed_schemes.return_value = [
+        {
+            "scheme": "PM-KISAN",
+            "title": "PM-KISAN Operational Guidelines",
+            "source_file": "pm_kisan_guidelines.pdf",
+            "url": "https://pmkisan.gov.in",
+            "doc_date": "2020-03-29",
+            "date_accessed": "2026-11-02",
+            "chunks_count": 55,
+        }
+    ]
+    mock_get_retriever.return_value = mock_ret
+
     response = client.get("/schemes")
     assert response.status_code == 200
     schemes = response.json()
@@ -77,8 +110,12 @@ def test_ask_validation_too_long():
     assert "not exceed 500 characters" in data["detail"]
 
 
+@patch("api.main.get_retriever")
 @patch("api.main.run_workflow")
-def test_ask_valid_request_mocked(mock_run_workflow):
+def test_ask_valid_request_mocked(mock_run_workflow, mock_get_retriever):
+    mock_ret = MagicMock()
+    mock_ret.count.return_value = 207
+    mock_get_retriever.return_value = mock_ret
     mock_run_workflow.return_value = {
         "question": "What is PM-KISAN?",
         "intent": "benefits",

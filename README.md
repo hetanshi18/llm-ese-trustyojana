@@ -1,17 +1,39 @@
 # TrustYojana (v2) 🇮🇳
 
-**TrustYojana** is an end-to-end, verifiable RAG (Retrieval-Augmented Generation) question-answering system for Indian government welfare schemes (such as **PM-KISAN**, **Ayushman Bharat PM-JAY**, **National Means-cum-Merit Scholarship Scheme (NMMSS)**, and **PM SVANidhi**).
+> **Verifiable, Citation-Backed Question-Answering for Indian Government Schemes**
+> *Built with LangChain, LangGraph, ChromaDB, FastAPI, and Streamlit*
 
-TrustYojana answers queries **only when retrieved official scheme documents strictly support the facts**. If the evidence is insufficient or contradicted, the system safely abstains with an explicit, helpful fallback message.
+**TrustYojana** is an end-to-end RAG system for Indian government welfare schemes (**PM-KISAN**, **Ayushman Bharat PM-JAY**, **National Means-cum-Merit Scholarship Scheme (NMMSS)**, and **PM SVANidhi**).
+
+TrustYojana answers queries **only when retrieved official scheme documents strictly support the facts**. If the evidence is insufficient or contradicted, the system safely falls back with an explicit, helpful message.
+
+---
+
+## 🔒 Privacy, Personal Data & Limitations
+
+### 1. Zero Sensitive PII Interrogation
+TrustYojana is **stateless and single-turn**. Under the coursework specification, it explicitly does **not** implement multi-turn "slot-filling" forms and **never asks users for sensitive credentials or personal identifiers** (such as Aadhaar numbers, PAN, or bank account details).
+
+### 2. Personal Eligibility Assessment Handling
+When a user voluntarily asks about their personal circumstances (e.g., *"Am I eligible for PM-KISAN? I own 2 acres of land"*):
+- The system evaluates the criteria stated in the user's message as **Met** or **Not met**.
+- Any unstated criteria are marked **Unknown**.
+- Missing items are presented under an **Information Needed** list.
+- A mandatory legal notice is always displayed: *"This is not an official eligibility decision; confirm with the official scheme website or office."*
+
+### 3. Cloud Provider vs. Local Privacy (Why Ollama Is Recommended)
+- **Local Ollama Execution:** All embedding and LLM reasoning occur 100% locally on your computer. **No personal query text or details are ever transmitted over the internet.**
+- **Cloud LLM APIs (OpenAI / Anthropic / Gemini):** If configured with a cloud provider, the user's prompt text is sent via HTTPS to external third-party servers.
+- **Server Logging:** The FastAPI backend implements strict privacy-preserving logging. User question text is **never stored or logged**; only question length, a SHA-256 hash prefix, intent, scheme, verdict, retries, and latency are recorded in `logs/api.log`.
 
 ---
 
 ## 🏗️ Architecture & Integrated Workflow
 
 TrustYojana is developed as **one integrated application** incorporating the three lab experiment components:
-- **Experiment 5 (Document-based RAG):** Document ingestion (PyMuPDF/HTML/TXT), cleaning, chunking (`RecursiveCharacterTextSplitter`), embeddings (`BAAI/bge-small-en-v1.5`), persistent ChromaDB with incremental file-hash change detection, and basic retrieval.
-- **Experiment 6 (LangChain / LangGraph Workflow):** StateGraph workflow coordinating intent classification, scheme detection, personal eligibility analysis (stateless single-turn criteria breakdown), claim-level LLM evidence checking (`SUPPORTED` / `NOT_ENOUGH_EVIDENCE` / `CONTRADICTED`), query rewriting with retry loops, and safe fallback.
-- **Experiment 7 (FastAPI & Streamlit):** High-performance asynchronous REST API with validation, middleware-based request tracking (`X-Request-ID`), privacy-preserving logging (logs question length and hash only, no question text), health monitoring (independent vector DB and LLM connectivity), and a Streamlit chat UI.
+- **Experiment 5 (Document-based RAG):** Document ingestion (PDF via PyMuPDF; HTML/TXT), text cleaning, chunking (`RecursiveCharacterTextSplitter`), embeddings (`BAAI/bge-small-en-v1.5`), persistent ChromaDB with file-hash change detection, and basic retrieval.
+- **Experiment 6 (LangChain / LangGraph Workflow):** StateGraph workflow coordinating intent classification, scheme detection, personal eligibility analysis, claim-level evidence checking (`SUPPORTED` / `NOT_ENOUGH_EVIDENCE` / `CONTRADICTED`), query rewriting with retry loops, and safe fallback.
+- **Experiment 7 (FastAPI & Streamlit):** High-performance asynchronous REST API with validation, middleware-based request tracking (`X-Request-ID`), privacy-preserving logging, health monitoring (independent vector DB and LLM connectivity), and a Streamlit chat UI.
 
 ```mermaid
 flowchart TD
@@ -39,13 +61,14 @@ flowchart TD
 
 ```text
 trustyojana/
+  ├── LICENSE                 # MIT Open Source License
   ├── README.md               # Complete project documentation and guide
   ├── requirements.txt        # Python 3.11 dependencies
   ├── config.yaml             # Central configuration (models, chunking, paths, ports)
   ├── .env.example            # Template for environment variables and API keys
   ├── data/
   │   ├── raw/                # Official scheme PDFs (PM-KISAN, Ayushman Bharat, NMMSS, PM SVANidhi)
-  │   ├── processed/          # Cleaned documents saved for inspection
+  │   ├── processed/          # Cleaned text files saved for inspection
   │   └── sources.csv         # Metadata mapping (filename, scheme, title, url, doc_date, date_accessed)
   ├── chroma_db/              # Persistent ChromaDB vector database
   ├── logs/
@@ -53,8 +76,7 @@ trustyojana/
   ├── src/
   │   ├── __init__.py
   │   ├── config.py           # Configuration loader (.env and config.yaml)
-  │   ├── llm.py              # Provider-agnostic LLM wrapper (OpenAI, Gemini, Anthropic, Ollama)
-  │   ├── generate_docs.py    # Official scheme document generator
+  │   ├── llm.py              # Provider-agnostic LLM wrapper (Ollama, OpenAI, Gemini, Anthropic)
   │   ├── ingest.py           # Document cleaning, chunking, hashing, and Chroma indexing
   │   ├── retriever.py        # Top-k retrieval with metadata filtering
   │   ├── rag_chain.py        # Basic retrieve-and-answer pipeline (Exp 5)
@@ -75,142 +97,93 @@ trustyojana/
 
 ---
 
-## ⚙️ Installation & Setup
+## 📥 Supplying & Ingesting Official Documents
 
-### 1. Prerequisites
-- **Python 3.11** installed.
-- No GPU required (embeddings run efficiently on CPU via PyTorch and SentenceTransformers).
+Under Experiment 5, source documents in `data/raw/` are supplied by the user from authentic government sources.
 
-### 2. Virtual Environment Setup
-Open a terminal in the project directory:
+### Official Source Documents Ingested:
+1. **PM-KISAN (`pm_kisan_guidelines.pdf`):**
+   - Source: Ministry of Agriculture & Farmers Welfare (`https://pmkisan.gov.in`)
+   - Document: *PM-KISAN Operational Guidelines (Revised 2020)*
+   - Covers: Rs. 6,000/year DBT assistance in 3 installments, land record rules, and the complete institutional/professional/pension exclusion list.
+2. **Ayushman Bharat PM-JAY (`ayushman_pmjay_guidelines.pdf`):**
+   - Source: National Health Authority (NHA) / MoHFW (`https://pmjay.gov.in`)
+   - Document: *Beneficiary Identification Guidelines (AB PM-JAY)*
+   - Covers: Rural SECC D1–D7 deprivation criteria, 11 urban occupational categories, Ayushman Golden card printing, and empanelled hospital procedures.
+3. **NMMSS Scholarship (`nmmss_guidelines.pdf` & `nmmss_faq.pdf`):**
+   - Source: Department of School Education & Literacy, Ministry of Education (`https://scholarships.gov.in`)
+   - Documents: *Revised Scheme Guidelines & Frequently Asked Questions*
+   - Covers: Class VIII entrance, 55% mark cutoff (50% for SC/ST), Rs. 3,50,000 parental income cap, Rs. 12,000 annual scholarship, and NSP portal submission.
+4. **PM SVANidhi (`pm_svanidhi_guidelines.pdf`):**
+   - Source: Ministry of Housing and Urban Affairs (MoHUA) (`https://pmsvanidhi.mohua.gov.in`)
+   - Document: *PM SVANidhi Scheme Guidelines*
+   - Covers: Urban street vendors, 1st tranche (Rs. 10,000), 2nd tranche (Rs. 20,000), 3rd tranche (Rs. 50,000), 7% interest subsidy, and digital transaction cashbacks.
 
-```bash
-# Windows
-py -3.11 -m venv venv
-.\venv\Scripts\activate
-
-# macOS / Linux
-python3.11 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure Environment Variables
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-
-Open `.env` and configure your preferred LLM provider and credentials:
-```env
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-4o-mini
-OPENAI_API_KEY=your-actual-api-key-here
-
-# Alternatively for Google Gemini:
-# LLM_PROVIDER=gemini
-# LLM_MODEL=gemini-1.5-flash
-# GEMINI_API_KEY=your-actual-gemini-key-here
-```
-
-All other parameters (chunk size `800`, overlap `100`, top-k `4`, max retries `2`) can be reviewed or tuned in [`config.yaml`](file:///c:/Users/HETANSHI%20SHAH/Desktop/LLM_Lab/ESE/config.yaml).
-
----
-
-## 📥 Ingestion & Document Refresh
-
-### Step 1: Ingest Scheme Documents
-Run the ingestion pipeline to clean text, generate embeddings (`BAAI/bge-small-en-v1.5`), and index into persistent ChromaDB:
+### Running Ingestion
+Place your PDFs into `data/raw/` and verify their corresponding rows in `data/sources.csv`. Then run:
 
 ```bash
 python -m src.ingest
 ```
 
-### Step 2: Incremental Updates (Content Hash Logic)
-The ingestion tool automatically computes SHA-256 hashes of all source files.
-- If you run `python -m src.ingest` again without changes, unchanged files are **skipped** in seconds.
-- When an existing document is modified, only that document's chunks are deleted and re-indexed.
-- To completely wipe and rebuild the vector database from scratch:
+- **Incremental Hash Detection:** If files are unchanged, re-running `python -m src.ingest` skips them in seconds.
+- **Clean Rebuild:** To completely wipe and rebuild the vector database:
   ```bash
   python -m src.ingest --reset
   ```
 
-### How to Add New Schemes Manually
-1. Place the new PDF, HTML, or TXT file into `data/raw/` (e.g. `data/raw/new_scheme.pdf`).
-2. Add a new row to `data/sources.csv`:
-   ```csv
-   filename,scheme,title,url,doc_date,date_accessed
-   new_scheme.pdf,New Scheme Name,Official Guidelines,https://scheme.gov.in,2024-01-01,2024-10-30
-   ```
-3. Run `python -m src.ingest`.
-
 ---
 
-## 🚀 Running the Application
+## ⚙️ Installation & Running
 
-To experience the full end-to-end application, start the FastAPI backend and Streamlit frontend in two separate terminals.
-
-### Terminal 1: Launch FastAPI Backend
-```bash
-# Activate venv if not active
+### 1. Virtual Environment & Dependencies
+```powershell
+# Activate venv
 .\venv\Scripts\activate
 
+# Install requirements
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment (`.env`)
+By default, TrustYojana is configured to run with your local **Ollama** instance:
+```env
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen2.5:0.5b
+OLLAMA_BASE_URL=http://localhost:11434
+
+API_HOST=0.0.0.0
+API_PORT=8000
+STREAMLIT_API_URL=http://127.0.0.1:8000
+```
+
+### 3. Launch Applications
+
+**Terminal 1: FastAPI Backend**
+```powershell
+.\venv\Scripts\activate
 uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
-- API Docs (Swagger UI): `http://127.0.0.1:8000/docs`
-- Health Check: `http://127.0.0.1:8000/health`
-- Live LLM Deep Health Check: `http://127.0.0.1:8000/health?deep=true`
-- Indexed Schemes: `http://127.0.0.1:8000/schemes`
 
-### Terminal 2: Launch Streamlit Frontend
-```bash
-# Activate venv if not active
+**Terminal 2: Streamlit Frontend**
+```powershell
 .\venv\Scripts\activate
-
 streamlit run app/streamlit_app.py
 ```
-- Web Application UI: `http://localhost:8501`
+Open `http://localhost:8501` in your browser.
 
 ---
 
-## 🧪 Testing TrustYojana Features
+## 🔬 Automated Testing
 
-The Streamlit interface includes quick sample buttons representing key system capabilities:
+Run the automated test suite with pytest:
 
-1. **Answerable Factual Question:**
-   - *Example:* "What is the financial assistance provided under PM-KISAN and how is it disbursed?"
-   - *Result:* Direct grounded answer citing Rs 6,000 in 3 installments of Rs 2,000 via DBT, with page-level citations from `pm_kisan_guidelines.pdf`.
-2. **Personal Eligibility (Stateless Single-Turn Assessment):**
-   - *Example:* "Am I eligible for PM-KISAN? I own 2 acres of land and my family does farming."
-   - *Result:* Lists criteria, marks land ownership as **Met**, marks exclusion criteria (Income tax, government job, constitutional post) as **Unknown**, provides an explicit **Information Needed** list, states insufficient information to decide, and prints the mandatory disclaimer: *"This is not an official eligibility decision; confirm with the official scheme website or office."*
-3. **Unanswerable / Unsupported Question:**
-   - *Example:* "Can I purchase a tractor using an Ayushman Bharat card?"
-   - *Result:* Safely abstains with *"I don't have enough information in the available scheme documents to answer this reliably. Please check the official scheme website."*
-4. **Out-of-Scope Query:**
-   - *Example:* "How do I make authentic Hyderabadi biryani?"
-   - *Result:* Classified as `out_of_scope` and routes directly to the fallback notice without making vector store retrieval calls.
-5. **Freshness & Document Traceability:**
-   - Every answer displays a freshness notice: *"Based on documents last accessed on 2024-10-15. Scheme rules change, so verify on the official website."*
-   - Expand the **Cited Sources** accordion to view document title, page numbers, text snippets, official URLs, and access dates.
-   - Expand the **Execution Trace** accordion to view latency, retry count, and node-by-node execution path.
-6. **Privacy Preserving Server Logs:**
-   - Check `logs/api.log`: User question text is **never stored or logged**. Only question length, a SHA-256 hash prefix, intent, scheme, verdict, retries, and latency are recorded.
-
----
-
-## 🔬 Running Unit Tests
-
-Run the full automated test suite covering all components:
-
-```bash
+```powershell
 .\venv\Scripts\pytest -v tests
 ```
+All 23 unit tests verify text cleaning, hash skip logic, evidence JSON parsing, graph edge routing, input validation (422), deep health checks, and privacy-preserving logging.
 
-Tests include:
-- `tests/test_ingest.py`: Header/footer cleaning, hyphenated wrap resolution, whitespace normalization, SHA-256 hash detection, and text splitting.
-- `tests/test_workflow.py`: Robust JSON parsing, missing information extraction, conditional edge routing for all verdicts (`SUPPORTED`, `NOT_ENOUGH_EVIDENCE`, `CONTRADICTED`, `out_of_scope`), and full mocked workflow execution.
-- `tests/test_api.py`: FastAPI `TestClient` tests for input validation (422), standard and deep health checks (200 / 503), scheme listing, and verification that question text is excluded from logs.
+---
+
+## 📄 License
+This project is licensed under the [MIT License](LICENSE).

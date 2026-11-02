@@ -12,6 +12,10 @@ Implements Experiment 7:
 - Exception handlers returning standardized ErrorResponse
 """
 
+import os
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 import hashlib
 import logging
 from logging.handlers import RotatingFileHandler
@@ -221,7 +225,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
 # ------------------------------------------------------------------------------
 
 @app.post("/ask", response_model=AskResponse)
-async def ask_endpoint(payload: AskRequest, request: Request):
+def ask_endpoint(payload: AskRequest, request: Request):
     """Process a user question through the LangGraph RAG workflow."""
     req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
     start_time = time.time()
@@ -308,7 +312,7 @@ async def ask_endpoint(payload: AskRequest, request: Request):
 
 
 @app.get("/health", response_model=HealthResponse)
-async def health_endpoint(deep: bool = Query(False, description="Perform live LLM reachability probe")):
+def health_endpoint(deep: bool = Query(False, description="Perform live LLM reachability probe")):
     """Health check endpoint.
     
     Reports separate statuses for:
@@ -351,7 +355,7 @@ async def health_endpoint(deep: bool = Query(False, description="Perform live LL
 
 
 @app.get("/schemes", response_model=list[SchemeInfo])
-async def list_schemes_endpoint():
+def list_schemes_endpoint():
     """List all indexed government schemes with metadata and last-accessed dates."""
     retriever = get_retriever()
     schemes = retriever.get_indexed_schemes()
