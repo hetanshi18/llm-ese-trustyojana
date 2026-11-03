@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage
 from src.workflow import (
     WorkflowState,
     build_workflow,
+    classify_intent_node,
     extract_missing_info,
     parse_json_safely,
     route_after_check,
@@ -22,6 +23,60 @@ def test_parse_json_safely_plain_json():
     assert parsed["intent"] == "eligibility"
     assert parsed["scheme"] == "PM-KISAN"
     assert parsed["is_personal"] is True
+
+
+@patch("src.workflow.get_llm")
+def test_classify_intent_deterministic(mock_get_llm):
+    """Verify keyword-based deterministic rules override small LLM classification mistakes."""
+    mock_llm = MagicMock()
+    # Mock LLM returns general_info/benefits to verify that deterministic rules take precedence
+    mock_llm.invoke.return_value = AIMessage(content='{"intent": "general_info", "scheme": "Unknown"}')
+    mock_get_llm.return_value = mock_llm
+
+    # 1. NMMSS personal eligibility
+    q1 = "Can my daughter apply for the NMMSS scholarship? She scored 70% in Class 7 at a state government school, and our annual family income is Rs. 2.5 lakh."
+    r1 = classify_intent_node({"question": q1})  # type: ignore
+    assert r1["intent"] == "eligibility"
+    assert r1["scheme"] == "NMMSS Scholarship"
+    assert r1["is_personal"] is True
+
+    # 2. PM SVANidhi personal eligibility (contains certificate without being documents_required)
+    q2 = "Am I eligible for a PM SVANidhi loan? I run a vegetable vending cart in a municipal area and hold a Certificate of Vending."
+    r2 = classify_intent_node({"question": q2})  # type: ignore
+    assert r2["intent"] == "eligibility"
+    assert r2["scheme"] == "PM SVANidhi"
+    assert r2["is_personal"] is True
+
+    # 3. PM-KISAN personal eligibility
+    q3 = "Am I eligible for PM-KISAN? I own 2 acres of land and my family does farming"
+    r3 = classify_intent_node({"question": q3})  # type: ignore
+    assert r3["intent"] == "eligibility"
+    assert r3["scheme"] == "PM-KISAN"
+    assert r3["is_personal"] is True
+
+    # 4. Exclusion general eligibility
+    q4 = "Who is excluded from PM-KISAN?"
+    r4 = classify_intent_node({"question": q4})  # type: ignore
+    assert r4["intent"] == "eligibility"
+    assert r4["scheme"] == "PM-KISAN"
+    assert r4["is_personal"] is False
+
+    # 5. Documents required
+    q5 = "What documents are required to apply for PM-KISAN?"
+    r5 = classify_intent_node({"question": q5})  # type: ignore
+    assert r5["intent"] == "documents_required"
+    assert r5["scheme"] == "PM-KISAN"
+
+    # 6. Application process
+    q6 = "How to apply for PM SVANidhi online?"
+    r6 = classify_intent_node({"question": q6})  # type: ignore
+    assert r6["intent"] == "application_process"
+    assert r6["scheme"] == "PM SVANidhi"
+
+    # 7. Out of scope
+    q7 = "How to bake a chocolate cake?"
+    r7 = classify_intent_node({"question": q7})  # type: ignore
+    assert r7["intent"] == "out_of_scope"
 
 
 def test_parse_json_safely_markdown_wrapped():

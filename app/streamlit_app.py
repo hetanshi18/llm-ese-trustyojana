@@ -247,8 +247,7 @@ with col2:
 
 with col3:
     if st.button("🚫 Unanswerable Query", use_container_width=True):
-        st.session_state.prompt_to_submit = "Can I purchase a tractor or agricultural vehicle using an Ayushman Bharat card?"
-
+        st.session_state.prompt_to_submit = "Can you give me the names of all private hospitals in Indore empanelled under Ayushman Bharat PM-JAY?"
 with col4:
     if st.button("🌐 Out of Scope", use_container_width=True):
         st.session_state.prompt_to_submit = "How do I make authentic Hyderabadi biryani?"

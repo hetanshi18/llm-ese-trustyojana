@@ -266,9 +266,9 @@ def ask_endpoint(payload: AskRequest, request: Request):
     # Format response fields
     intent = result.get("intent", "general_info")
     scheme = result.get("scheme", "Unknown")
-    verdict = result.get("verdict", "SUPPORTED")
     is_personal = result.get("is_personal", False)
     abstained = result.get("abstained", False)
+    verdict = result.get("verdict", "NOT_ENOUGH_EVIDENCE" if abstained else "SUPPORTED")
     retries = result.get("retries", 0)
     final_answer = result.get("final_answer", "")
     missing_info = result.get("missing_info", [])
