@@ -16,8 +16,8 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Set offline mode for cached HuggingFace models to eliminate network retry delays
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+# os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 # Load .env if present
 load_dotenv(dotenv_path=BASE_DIR / ".env")

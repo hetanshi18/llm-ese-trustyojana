@@ -5,8 +5,8 @@ app:
   log_file: "logs/api.log"
 
 llm:
-  provider: "ollama"  # Options: openai, gemini, anthropic, ollama
-  model: "qwen2.5:0.5b"
+  provider: "gemini" # Options: openai, gemini, anthropic, ollama
+  model: "gemini-1.5-flash"
   temperature: 0.0
   request_timeout: 60
   max_retries: 2

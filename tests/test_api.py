@@ -1,8 +1,8 @@
 """Unit tests for FastAPI endpoints, request validation, health checks, and privacy logging."""
 
 import os
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
-os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+# os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
